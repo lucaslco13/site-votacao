@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Concurso de Fantasia</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: linear-gradient(135deg, #111827, #1f2937);
+      color: white;
+      padding: 30px;
+      margin: 0;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: auto;
+    }
+
+    .titulo {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .titulo h1 {
+      margin: 0;
+      font-size: 32px;
+    }
+
+    .titulo p {
+      margin: 5px 0;
+      font-size: 18px;
+      color: #facc15;
+      font-weight: bold;
+    }
+
+    .banner {
+      width: 100%;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    .box {
+      background: white;
+      color: black;
+      padding: 25px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #111827;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    #msg {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="titulo">
+    <h1>🎭 Concurso da Melhor Fantasia</h1>
+    <p>💰 Premiação: R$100</p>
+  </div>
+
+  <!-- IMAGEM -->
+  <img src="dinheiro_premiacao.png" class="banner">
+
+  <!-- CADASTRO -->
+  <div id="boxCadastro" class="box hidden">
+    <h2>Seus dados</h2>
+
+    <input id="nome" placeholder="Seu nome">
+    <input id="gmailCadastro" placeholder="Seu gmail">
+    <input id="fantasia" placeholder="Sua fantasia">
+
+    <button onclick="cadastrar()">Enviar meus dados</button>
+  </div>
+
+  <!-- VOTAÇÃO -->
+  <div id="boxVotacao" class="box hidden">
+    <h2>Seu voto</h2>
+
+    <input id="gmailVoto" placeholder="Seu gmail" onblur="carregarOpcoesVoto()">
+
+    <select id="voto">
+      <option>Digite seu gmail acima</option>
+    </select>
+
+    <button onclick="votar()">Votar</button>
+  </div>
+
+  <!-- RANKING -->
+  <div id="boxRanking" class="box hidden">
+    <h2>🏆 Top 10</h2>
+    <div id="ranking"></div>
+  </div>
+
+  <p id="msg"></p>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+const MODO = "cadastro"; // muda aqui depois
+
+const SUPABASE_URL = "https://gkijhexfndwejzlmqbkf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_fm8fjCp8h4gIEJTZzopybg_jLE88hUC";
+
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+function iniciar() {
+  document.getElementById("boxCadastro").classList.add("hidden");
+  document.getElementById("boxVotacao").classList.add("hidden");
+  document.getElementById("boxRanking").classList.add("hidden");
+
+  if (MODO === "cadastro") {
+    document.getElementById("boxCadastro").classList.remove("hidden");
+  }
+
+  if (MODO === "votacao") {
+    document.getElementById("boxVotacao").classList.remove("hidden");
+  }
+
+  if (MODO === "ranking") {
+    document.getElementById("boxRanking").classList.remove("hidden");
+    carregarRanking();
+  }
+}
+
+async function cadastrar() {
+  const nome = nome.value;
+  const gmail = gmailCadastro.value;
+  const fantasia = fantasia.value;
+
+  const { error } = await client.from("votos").insert([{ nome, gmail, fantasia }]);
+
+  document.getElementById("msg").innerText = error ? error.message : "Cadastrado!";
+}
+
+async function carregarOpcoesVoto() {
+  const email = gmailVoto.value;
+
+  const { data } = await client.from("votos").select("*");
+
+  const select = document.getElementById("voto");
+  select.innerHTML = "";
+
+  data
+    .filter(p => p.gmail !== email)
+    .forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.gmail;
+      opt.textContent = `${p.fantasia} - ${p.nome}`;
+      select.appendChild(opt);
+    });
+}
+
+async function votar() {
+  const email = gmailVoto.value;
+  const voto = document.getElementById("voto").value;
+
+  await client.from("votos").update({ voto }).eq("gmail", email);
+
+  document.getElementById("msg").innerText = "Voto registrado!";
+}
+
+async function carregarRanking() {
+  const { data } = await client.from("votos").select("*");
+
+  const contagem = {};
+  data.forEach(p => {
+    if (p.voto) contagem[p.voto] = (contagem[p.voto] || 0) + 1;
+  });
+
+  const ranking = data
+    .map(p => ({
+      nome: p.nome,
+      fantasia: p.fantasia,
+      votos: contagem[p.gmail] || 0
+    }))
+    .sort((a,b) => b.votos - a.votos)
+    .slice(0,10);
+
+  document.getElementById("ranking").innerHTML =
+    ranking.map((r,i) =>
+      `<p>${i+1}º - ${r.fantasia} (${r.nome}) - ${r.votos} votos</p>`
+    ).join("");
+}
+
+iniciar();
+</script>
+
+</body>
+</html>
