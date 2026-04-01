@@ -6,7 +6,7 @@
 
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: linear-gradient(135deg, #111827, #1f2937);
       color: white;
       padding: 30px;
@@ -56,6 +56,7 @@
       margin: 8px 0;
       border-radius: 6px;
       border: 1px solid #ccc;
+      box-sizing: border-box;
     }
 
     button {
@@ -69,6 +70,11 @@
       margin-top: 10px;
     }
 
+    button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+
     #msg {
       text-align: center;
       font-weight: bold;
@@ -77,6 +83,15 @@
 
     .hidden {
       display: none;
+    }
+
+    .ranking-item {
+      padding: 12px 0;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .ranking-item:last-child {
+      border-bottom: none;
     }
   </style>
 </head>
@@ -90,8 +105,7 @@
     <p>💰 Premiação: R$100</p>
   </div>
 
-  <!-- IMAGEM -->
-  <img src="dinheiro_premiacao.png" class="banner">
+  <img src="dinheiro_premiacao.png" class="banner" alt="Premiação">
 
   <!-- CADASTRO -->
   <div id="boxCadastro" class="box hidden">
@@ -101,7 +115,7 @@
     <input id="gmailCadastro" placeholder="Seu gmail">
     <input id="fantasia" placeholder="Sua fantasia">
 
-    <button onclick="cadastrar()">Enviar meus dados</button>
+    <button id="btnCadastrar" onclick="cadastrar()">Enviar meus dados</button>
   </div>
 
   <!-- VOTAÇÃO -->
@@ -111,16 +125,16 @@
     <input id="gmailVoto" placeholder="Seu gmail" onblur="carregarOpcoesVoto()">
 
     <select id="voto">
-      <option>Digite seu gmail acima</option>
+      <option value="">Digite seu gmail acima</option>
     </select>
 
-    <button onclick="votar()">Votar</button>
+    <button id="btnVotar" onclick="votar()">Votar</button>
   </div>
 
   <!-- RANKING -->
   <div id="boxRanking" class="box hidden">
     <h2>🏆 Top 10</h2>
-    <div id="ranking"></div>
+    <div id="ranking">Carregando...</div>
   </div>
 
   <p id="msg"></p>
@@ -129,112 +143,233 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
+<script>
+  // TROQUE AQUI:
+  // "cadastro" = só mostra Seus dados
+  // "votacao"  = só mostra Seu voto
+  // "ranking"  = só mostra Top 10
 
+  const MODO = "cadastro";
+  // const MODO = "votacao";
+  // const MODO = "ranking";
 
+  const SUPABASE_URL = "https://gkijhexfndwejzlmqbkf.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_fm8fjCp8h4gIEJTZzopybg_jLE88hUC";
 
-  
- <script>
-    // TROQUE AQUI:
-    // "cadastro" = só mostra Seus dados
-    // "votacao"  = só mostra Seu voto
-    // "ranking"  = só mostra Top 10
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-   
-    const MODO = "cadastro";
-    //const MODO = "votacao";
-    //const MODO = "ranking";
+  function iniciar() {
+    document.getElementById("boxCadastro").classList.add("hidden");
+    document.getElementById("boxVotacao").classList.add("hidden");
+    document.getElementById("boxRanking").classList.add("hidden");
+    document.getElementById("msg").innerText = "";
 
+    if (MODO === "cadastro") {
+      document.getElementById("boxCadastro").classList.remove("hidden");
+    }
 
+    if (MODO === "votacao") {
+      document.getElementById("boxVotacao").classList.remove("hidden");
+    }
 
-
-
-  
-
-const SUPABASE_URL = "https://gkijhexfndwejzlmqbkf.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_fm8fjCp8h4gIEJTZzopybg_jLE88hUC";
-
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-function iniciar() {
-  document.getElementById("boxCadastro").classList.add("hidden");
-  document.getElementById("boxVotacao").classList.add("hidden");
-  document.getElementById("boxRanking").classList.add("hidden");
-
-  if (MODO === "cadastro") {
-    document.getElementById("boxCadastro").classList.remove("hidden");
+    if (MODO === "ranking") {
+      document.getElementById("boxRanking").classList.remove("hidden");
+      carregarRanking();
+    }
   }
 
-  if (MODO === "votacao") {
-    document.getElementById("boxVotacao").classList.remove("hidden");
+  async function cadastrar() {
+    const nome = document.getElementById("nome").value.trim();
+    const gmail = document.getElementById("gmailCadastro").value.trim().toLowerCase();
+    const fantasia = document.getElementById("fantasia").value.trim();
+    const msg = document.getElementById("msg");
+    const btn = document.getElementById("btnCadastrar");
+
+    if (!nome || !gmail || !fantasia) {
+      msg.innerText = "Preencha todos os campos!";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Enviando...";
+
+    const { error } = await client.from("votos").insert([
+      { nome, gmail, fantasia, voto: null }
+    ]);
+
+    if (error) {
+      if (error.message.toLowerCase().includes("duplicate")) {
+        msg.innerText = "Esse gmail já foi cadastrado.";
+      } else {
+        msg.innerText = error.message;
+      }
+      btn.disabled = false;
+      btn.innerText = "Enviar meus dados";
+      return;
+    }
+
+    msg.innerText = "Cadastrado com sucesso!";
+    document.getElementById("nome").value = "";
+    document.getElementById("gmailCadastro").value = "";
+    document.getElementById("fantasia").value = "";
+    btn.disabled = false;
+    btn.innerText = "Enviar meus dados";
   }
 
-  if (MODO === "ranking") {
-    document.getElementById("boxRanking").classList.remove("hidden");
-    carregarRanking();
+  async function carregarOpcoesVoto() {
+    const email = document.getElementById("gmailVoto").value.trim().toLowerCase();
+    const select = document.getElementById("voto");
+    const msg = document.getElementById("msg");
+
+    select.innerHTML = '<option value="">Carregando...</option>';
+    msg.innerText = "";
+
+    if (!email) {
+      select.innerHTML = '<option value="">Digite seu gmail acima</option>';
+      return;
+    }
+
+    const { data: eu, error: erroEu } = await client
+      .from("votos")
+      .select("*")
+      .eq("gmail", email)
+      .single();
+
+    if (erroEu || !eu) {
+      select.innerHTML = '<option value="">Email não cadastrado</option>';
+      msg.innerText = "Esse email não foi cadastrado.";
+      return;
+    }
+
+    if (eu.voto) {
+      select.innerHTML = '<option value="">Você já votou</option>';
+      msg.innerText = "Esse email já registrou um voto.";
+      return;
+    }
+
+    const { data, error } = await client.from("votos").select("*");
+
+    if (error) {
+      select.innerHTML = '<option value="">Erro ao carregar opções</option>';
+      msg.innerText = "Erro ao carregar opções de voto.";
+      return;
+    }
+
+    select.innerHTML = '<option value="">Selecione uma opção</option>';
+
+    data
+      .filter(p => p.gmail !== email)
+      .forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.gmail;
+        opt.textContent = `${p.fantasia} - ${p.nome}`;
+        select.appendChild(opt);
+      });
   }
-}
 
-async function cadastrar() {
-  const nome = nome.value;
-  const gmail = gmailCadastro.value;
-  const fantasia = fantasia.value;
+  async function votar() {
+    const email = document.getElementById("gmailVoto").value.trim().toLowerCase();
+    const voto = document.getElementById("voto").value;
+    const msg = document.getElementById("msg");
+    const btn = document.getElementById("btnVotar");
 
-  const { error } = await client.from("votos").insert([{ nome, gmail, fantasia }]);
+    if (!email) {
+      msg.innerText = "Digite seu gmail.";
+      return;
+    }
 
-  document.getElementById("msg").innerText = error ? error.message : "Cadastrado!";
-}
+    if (!voto) {
+      msg.innerText = "Selecione uma opção para votar.";
+      return;
+    }
 
-async function carregarOpcoesVoto() {
-  const email = gmailVoto.value;
+    const { data: eu, error: erroEu } = await client
+      .from("votos")
+      .select("*")
+      .eq("gmail", email)
+      .single();
 
-  const { data } = await client.from("votos").select("*");
+    if (erroEu || !eu) {
+      msg.innerText = "Esse email não foi cadastrado.";
+      return;
+    }
 
-  const select = document.getElementById("voto");
-  select.innerHTML = "";
+    if (eu.voto) {
+      msg.innerText = "Esse email já votou.";
+      return;
+    }
 
-  data
-    .filter(p => p.gmail !== email)
-    .forEach(p => {
-      const opt = document.createElement("option");
-      opt.value = p.gmail;
-      opt.textContent = `${p.fantasia} - ${p.nome}`;
-      select.appendChild(opt);
+    if (email === voto) {
+      msg.innerText = "Você não pode votar em si mesmo.";
+      return;
+    }
+
+    btn.disabled = true;
+    btn.innerText = "Enviando...";
+
+    const { error } = await client
+      .from("votos")
+      .update({ voto: voto })
+      .eq("gmail", email);
+
+    if (error) {
+      msg.innerText = error.message;
+      btn.disabled = false;
+      btn.innerText = "Votar";
+      return;
+    }
+
+    msg.innerText = "Voto registrado!";
+    document.getElementById("gmailVoto").value = "";
+    document.getElementById("voto").innerHTML = '<option value="">Digite seu gmail acima</option>';
+    btn.disabled = false;
+    btn.innerText = "Votar";
+  }
+
+  async function carregarRanking() {
+    const rankingDiv = document.getElementById("ranking");
+
+    const { data, error } = await client.from("votos").select("*");
+
+    if (error) {
+      rankingDiv.innerHTML = "Erro ao carregar ranking.";
+      return;
+    }
+
+    const contagem = {};
+
+    data.forEach(p => {
+      if (p.voto) {
+        contagem[p.voto] = (contagem[p.voto] || 0) + 1;
+      }
     });
-}
 
-async function votar() {
-  const email = gmailVoto.value;
-  const voto = document.getElementById("voto").value;
+    const ranking = data
+      .map(p => ({
+        nome: p.nome,
+        fantasia: p.fantasia,
+        votos: contagem[p.gmail] || 0
+      }))
+      .sort((a, b) => {
+        if (b.votos !== a.votos) return b.votos - a.votos;
+        return a.nome.localeCompare(b.nome, "pt-BR");
+      })
+      .slice(0, 10);
 
-  await client.from("votos").update({ voto }).eq("gmail", email);
+    if (ranking.length === 0) {
+      rankingDiv.innerHTML = "Nenhum dado encontrado.";
+      return;
+    }
 
-  document.getElementById("msg").innerText = "Voto registrado!";
-}
+    rankingDiv.innerHTML = ranking.map((r, i) => `
+      <div class="ranking-item">
+        <strong>${i + 1}º - ${r.fantasia}</strong><br>
+        ${r.nome} - ${r.votos} voto(s)
+      </div>
+    `).join("");
+  }
 
-async function carregarRanking() {
-  const { data } = await client.from("votos").select("*");
-
-  const contagem = {};
-  data.forEach(p => {
-    if (p.voto) contagem[p.voto] = (contagem[p.voto] || 0) + 1;
-  });
-
-  const ranking = data
-    .map(p => ({
-      nome: p.nome,
-      fantasia: p.fantasia,
-      votos: contagem[p.gmail] || 0
-    }))
-    .sort((a,b) => b.votos - a.votos)
-    .slice(0,10);
-
-  document.getElementById("ranking").innerHTML =
-    ranking.map((r,i) =>
-      `<p>${i+1}º - ${r.fantasia} (${r.nome}) - ${r.votos} votos</p>`
-    ).join("");
-}
-
-iniciar();
+  iniciar();
 </script>
 
 </body>
