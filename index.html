@@ -107,7 +107,6 @@
 
   <img src="dinheiro_premiacao.png" class="banner" alt="Premiação">
 
-  <!-- CADASTRO -->
   <div id="boxCadastro" class="box hidden">
     <h2>Seus dados</h2>
 
@@ -118,7 +117,6 @@
     <button id="btnCadastrar" onclick="cadastrar()">Enviar meus dados</button>
   </div>
 
-  <!-- VOTAÇÃO -->
   <div id="boxVotacao" class="box hidden">
     <h2>Seu voto</h2>
 
@@ -131,7 +129,6 @@
     <button id="btnVotar" onclick="votar()">Votar</button>
   </div>
 
-  <!-- RANKING -->
   <div id="boxRanking" class="box hidden">
     <h2>🏆 Top 10</h2>
     <div id="ranking">Carregando...</div>
@@ -143,15 +140,26 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
-  // TROQUE AQUI:
-  // "cadastro" = só mostra Seus dados
-  // "votacao"  = só mostra Seu voto
-  // "ranking"  = só mostra Top 10
 
-  //const MODO = "cadastro";
-  //const MODO = "votacao";
-  const MODO = "ranking";
+
+
+
+
+
+
+// RETIRE "//" NO CAMPO QUE ESTA VISIVEL NO SITE
+  
+
+<script>
+   // const MODO = "cadastro";
+ // const MODO = "votacao";
+ const MODO = "ranking";
+
+
+
+
+
+
 
   const SUPABASE_URL = "https://gkijhexfndwejzlmqbkf.supabase.co";
   const SUPABASE_ANON_KEY = "sb_publishable_fm8fjCp8h4gIEJTZzopybg_jLE88hUC";
@@ -194,7 +202,7 @@
     btn.innerText = "Enviando...";
 
     const { error } = await client.from("votos").insert([
-      { nome, gmail, fantasia, voto: null }
+      { nome, gmail, fantasia, voto: null, voto_descricao: null }
     ]);
 
     if (error) {
@@ -241,12 +249,6 @@
       return;
     }
 
-    if (eu.voto) {
-      select.innerHTML = '<option value="">Você já votou</option>';
-      msg.innerText = "Esse email já registrou um voto.";
-      return;
-    }
-
     const { data, error } = await client.from("votos").select("*");
 
     if (error) {
@@ -258,18 +260,26 @@
     select.innerHTML = '<option value="">Selecione uma opção</option>';
 
     data
-      .filter(p => p.gmail !== email)
+      .filter(p => p.gmail && p.gmail.toLowerCase() !== email)
       .forEach(p => {
         const opt = document.createElement("option");
-        opt.value = p.gmail;
+        opt.value = p.gmail.toLowerCase();
         opt.textContent = `${p.fantasia} - ${p.nome}`;
+        opt.setAttribute("data-descricao", `${p.fantasia} - ${p.nome}`);
         select.appendChild(opt);
       });
+
+    if (eu.voto) {
+      select.value = eu.voto.toLowerCase();
+      msg.innerText = "Você já votou antes. Se quiser, pode trocar seu voto.";
+    }
   }
 
   async function votar() {
     const email = document.getElementById("gmailVoto").value.trim().toLowerCase();
-    const voto = document.getElementById("voto").value;
+    const select = document.getElementById("voto");
+    const voto = select.value;
+    const votoDescricao = select.options[select.selectedIndex]?.textContent || null;
     const msg = document.getElementById("msg");
     const btn = document.getElementById("btnVotar");
 
@@ -294,12 +304,7 @@
       return;
     }
 
-    if (eu.voto) {
-      msg.innerText = "Esse email já votou.";
-      return;
-    }
-
-    if (email === voto) {
+    if (email === voto.toLowerCase()) {
       msg.innerText = "Você não pode votar em si mesmo.";
       return;
     }
@@ -309,7 +314,10 @@
 
     const { error } = await client
       .from("votos")
-      .update({ voto: voto })
+      .update({
+        voto: voto.toLowerCase(),
+        voto_descricao: votoDescricao
+      })
       .eq("gmail", email);
 
     if (error) {
@@ -319,9 +327,7 @@
       return;
     }
 
-    msg.innerText = "Voto registrado!";
-    document.getElementById("gmailVoto").value = "";
-    document.getElementById("voto").innerHTML = '<option value="">Digite seu gmail acima</option>';
+    msg.innerText = eu.voto ? "Voto alterado com sucesso!" : "Voto registrado!";
     btn.disabled = false;
     btn.innerText = "Votar";
   }
@@ -340,7 +346,8 @@
 
     data.forEach(p => {
       if (p.voto) {
-        contagem[p.voto] = (contagem[p.voto] || 0) + 1;
+        const chave = p.voto.toLowerCase();
+        contagem[chave] = (contagem[chave] || 0) + 1;
       }
     });
 
@@ -348,7 +355,7 @@
       .map(p => ({
         nome: p.nome,
         fantasia: p.fantasia,
-        votos: contagem[p.gmail] || 0
+        votos: contagem[(p.gmail || "").toLowerCase()] || 0
       }))
       .sort((a, b) => {
         if (b.votos !== a.votos) return b.votos - a.votos;
