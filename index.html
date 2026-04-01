@@ -128,8 +128,24 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
-const MODO = "cadastro"; // muda aqui depois
+
+
+
+  
+ <script>
+    // TROQUE AQUI:
+    // "cadastro" = só mostra Seus dados
+    // "votacao"  = só mostra Seu voto
+    // "ranking"  = só mostra Top 10
+    #const MODO = "cadastro";
+    const MODO = "votacao";
+    #const MODO = "ranking";
+
+
+
+
+
+  
 
 const SUPABASE_URL = "https://gkijhexfndwejzlmqbkf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_fm8fjCp8h4gIEJTZzopybg_jLE88hUC";
